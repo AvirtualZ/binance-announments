@@ -5,7 +5,7 @@ import config from './config.js';
 
 export default class Binance {
     static async CheckAnnouncements(): Promise<string[]> {
-        console.log("检查币安公告");
+        console.log("检查币安公告", moment().format('YYYY-MM-DD HH:mm:ss'));
         const url = `https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&pageNo=1&catalogId=48&pageSize=20`;
 
         const tokens: string[] = [];
