@@ -36,10 +36,10 @@ export default class Binance {
                     if (titleParts.length > 1) {
                         const token = titleParts[1].split(" ")[0];
                         // console.log("重要公告:", title, id, publishDate);
-                        console.log("提取的代币:", token);
+                        // console.log("提取的代币:", token);
                         const isProcessed = await config.redis.get(token);
                         if (isProcessed) {
-                            console.log(`代币 ${token} 已经处理过，跳过`);
+                            // console.log(`代币 ${token} 已经处理过，跳过`);
                             continue;
                         }
                         // console.log("公告标题:", announcement);
@@ -59,9 +59,8 @@ export default class Binance {
     }
 
     static async CheckAndPlaceOrder(tokens: string[]) {
+        console.log('tokens:', tokens);
         for (const token of tokens) {
-
-
             // 检查OKX交易所
             const isListedOnOKX = await this.checkOKXListing(token);
             if (isListedOnOKX) {

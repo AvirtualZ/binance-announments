@@ -12,10 +12,16 @@ nvm install v20.4.0
 
 npm install -D tsx @types/node
 
-# 3. 编译
+# 3. 安装 pm2
+
+npm install pm2 -g
+
+# 4. 编译
 
 tsc
 
-# 4. 运行
+# 5. 运行
 
 npm run start
+
+或 pm2 start dist/main.js
