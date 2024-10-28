@@ -12,6 +12,10 @@ nvm install v20.4.0
 
 npm install -D tsx @types/node
 
-# 3. 运行
+# 3. 编译
+
+tsc
+
+# 4. 运行
 
 npm run start

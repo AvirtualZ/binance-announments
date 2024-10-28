@@ -1,7 +1,7 @@
 import axios from "axios";
 import _ from "lodash";
 import moment from "moment";
-import config from './config';
+import config from './config.js';
 
 export default class Binance {
     static async CheckAnnouncements(): Promise<string[]> {

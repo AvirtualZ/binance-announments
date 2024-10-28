@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
-        "start": "tsx main.ts"
+        "test": "tsx main.ts",
+        "start": "node dist/main.js"
     },
     "dependencies": {
         "@types/lodash": "^4.17.12",
