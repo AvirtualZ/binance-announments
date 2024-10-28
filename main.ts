@@ -1,4 +1,4 @@
-import Binance from "./binance_notifier";
+import Binance from "./binance_notifier.js";  // 注意添加 .js 扩展名
 
 async function main() {
     try {
