@@ -1,0 +1,46 @@
+import _ from "lodash";
+import events from 'events';
+import * as ccxt from 'ccxt';
+import Redis from 'ioredis';
+
+events.EventEmitter.defaultMaxListeners = 20;
+
+// 创建全局交易所实例
+const okx = new ccxt.okx({
+    'enableRateLimit': true,
+    'apiKey': '',
+    'secret': '',
+    'password': ''
+});
+
+ const gateio = new ccxt.gateio({ 'enableRateLimit': true });
+
+// 创建Redis客户端实例
+ const redis = new Redis({
+    port: 6379,          // Redis端口
+    host: '127.0.0.1',   // Redis主机地址
+    // password: 'your_password',  // 如果有密码，请取消注释并填写
+    db: 0,               // 使用的数据库索引
+});
+
+// 连接成功时的回调
+redis.on('connect', () => {
+    console.log('成功连接到Redis服务器');
+});
+
+// 连接错误时的回调
+redis.on('error', (err) => {
+    console.error('Redis连接错误:', err);
+});
+
+export default {
+    okx,
+    gateio,
+    redis,
+    proxy : {
+        url: "https://api.zenrows.com/v1/",
+        apikey: ""  // 需要去zenrows官网注册
+    },
+    lark: ""
+}
+
