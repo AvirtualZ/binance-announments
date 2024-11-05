@@ -61,6 +61,10 @@ export default class Binance {
     static async CheckAndPlaceOrder(tokens: string[]) {
         console.log('tokens:', tokens);
         for (const token of tokens) {
+            if (token != "PONKE") {
+                continue;
+            }
+
             // 检查OKX交易所
             const isListedOnOKX = await this.checkOKXListing(token);
             if (isListedOnOKX) {
@@ -74,6 +78,7 @@ export default class Binance {
                     await this.placeLongOrderGateIO(token);
                 } else {
                     console.log(`代币 ${token} 未在OKX或Gate.io上市`);
+                    await this.sendLarkMessage("币安公告", `代币 ${token} 未在OKX或Gate.io上市`);
                 }
             }
             await config.redis.set(token, 'processed');
@@ -143,12 +148,28 @@ export default class Binance {
 
             console.log("实际下单数量:", actualAmount, amount, price, leverage);
             if (actualAmount > 0) {
+                // 下市价开仓单
                 const order = await exchange.createOrder(symbol, 'market', 'buy', actualAmount, undefined,{
                     'mgnMode': 'isolated',
                     'posSide': 'long',
                 });
+                var logMsg = `在OKX为 ${token} 使用逐仓模式下了${leverage}倍多单，订单信息: ${JSON.stringify(order)}`;
+                
+                // 获取开仓价格
+                const openPrice = order.price || (await exchange.fetchTicker(symbol)).last;
+                if (openPrice) {
+                    // 计算止盈价格 (上涨20%)
+                    const takeProfitPrice = openPrice * 1.2;
+                    
+                    // 下止盈限价单
+                    const tpOrder = await exchange.createOrder(symbol, 'limit', 'sell', actualAmount, takeProfitPrice, {
+                        'mgnMode': 'isolated',
+                        'posSide': 'long',
+                        'reduceOnly': true
+                    });
+                    logMsg += `\n止盈订单信息:${JSON.stringify(tpOrder)}`;
+                }
 
-                const logMsg = `在OKX为 ${token} 使用逐仓模式下了${leverage}倍多单，订单信息: ${JSON.stringify(order)}`;
                 console.log(logMsg);
                 // 推送lark
                 await this.sendLarkMessage("OKX下单成功", logMsg);
@@ -166,12 +187,23 @@ export default class Binance {
         try {
             const exchange = config.gateio;
             const symbol = `${token}/USDT:USDT`;
-            const amount = 8; // 设置合适的下单数量
-            const leverage = 5; // 设置5倍杠杆
 
-            // 设置杠杆和逐仓模式
-            await exchange.setLeverage(leverage, symbol);
+            // 获取账户余额
+            const balance = await exchange.fetchBalance({ 'type': 'swap' });
+            const availableUSDT = balance.USDT?.free || 0;
+            // const availableUSDT = 10;
+            console.log(`Gate.io可用USDT余额: ${balance.USDT?.free}`);
 
+            const amount = availableUSDT*0.9; // 设置合适的下单数量
+            const leverage = 3; // 设置5倍杠杆, 其他倍数设置不成功，鬼知道为什么
+
+             // 设置杠杆和逐仓模式
+            // await exchange.setPositionMode(true);  // 设置为双向持仓模式
+            await exchange.setLeverage(leverage, symbol, {
+                'mgnMode': 'isolated',
+                'posSide': 'long',
+            });
+            
             // 获取当前市场价格
             const ticker = await exchange.fetchTicker(symbol);
             const price = ticker.last;
@@ -186,21 +218,44 @@ export default class Binance {
 
             console.log("实际下单数量:", actualAmount, amount, price, leverage);
             if (actualAmount > 0) {
+                // 下市价单开仓
                 const order = await exchange.createMarketOrder(symbol, 'buy', actualAmount, undefined, {
                     'tdMode': 'isolated',
                     'leverage': leverage,
-                    'type': 'market',
+                    'type': 'market', 
                     'contracts': actualAmount,
+                    'timeInForce': 'IOC',
+                    'reduceOnly': false,
+                    'marginMode': 'isolated',
+                    'posSide': 'long',
+                    'postOnly': false
                 });
-                console.log(`在Gate.io为 ${token} 使用逐仓模式下了${leverage}倍多单，订单信息:`, order);
+
+                var logMsg = `在Gate.io为 ${token} 使用逐仓模式下了${leverage}倍多单，订单信息:${JSON.stringify(order)}`;
+                if (price) {
+                    // 下20%止盈限价单
+                    const takeProfitPrice = price * 1.2; // 在当前价格基础上加20%
+                    const takeProfitOrder = await exchange.createOrder(symbol, 'limit', 'sell', actualAmount, takeProfitPrice, {
+                        'tdMode': 'isolated',
+                        'leverage': leverage,
+                        'reduceOnly': true,
+                        'marginMode': 'isolated',
+                        'posSide': 'long',
+                        'postOnly': false
+                    });
+                    logMsg += `\n止盈订单信息:${JSON.stringify(takeProfitOrder)}`;
+                }
+
+                console.log(logMsg);
+                await this.sendLarkMessage("Gate.io下单成功", logMsg);
             } else {
                 console.log(`在Gate.io为 ${token} 使用逐仓模式下单失败，因为实际下单数量为0`);
             }
         } catch (error) {
             console.error(`在Gate.io下单时出错:`, error);
-        }
+            await this.sendLarkMessage("Gate.io下单失败", `错误信息: ${error}`);
     }
-
+    }
     // 推送lark
     static async sendLarkMessage(title: string, msg: string) {
         try {
