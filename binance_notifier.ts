@@ -61,10 +61,6 @@ export default class Binance {
     static async CheckAndPlaceOrder(tokens: string[]) {
         console.log('tokens:', tokens);
         for (const token of tokens) {
-            if (token != "PONKE") {
-                continue;
-            }
-
             // 检查OKX交易所
             const isListedOnOKX = await this.checkOKXListing(token);
             if (isListedOnOKX) {
@@ -159,7 +155,7 @@ export default class Binance {
                 const openPrice = order.price || (await exchange.fetchTicker(symbol)).last;
                 if (openPrice) {
                     // 计算止盈价格 (上涨20%)
-                    const takeProfitPrice = openPrice * 1.2;
+                    const takeProfitPrice = openPrice * 1.1;
                     
                     // 下止盈限价单
                     const tpOrder = await exchange.createOrder(symbol, 'limit', 'sell', actualAmount, takeProfitPrice, {
@@ -234,7 +230,7 @@ export default class Binance {
                 var logMsg = `在Gate.io为 ${token} 使用逐仓模式下了${leverage}倍多单，订单信息:${JSON.stringify(order)}`;
                 if (price) {
                     // 下20%止盈限价单
-                    const takeProfitPrice = price * 1.2; // 在当前价格基础上加20%
+                    const takeProfitPrice = price * 1.1; // 在当前价格基础上加20%
                     const takeProfitOrder = await exchange.createOrder(symbol, 'limit', 'sell', actualAmount, takeProfitPrice, {
                         'tdMode': 'isolated',
                         'leverage': leverage,
