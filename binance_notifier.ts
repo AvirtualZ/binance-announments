@@ -46,14 +46,19 @@ export default class Binance {
                         // 推送lark
                         await this.sendLarkMessage("币安公告", announcement.title+"\n"+publishDate);
                         tokens.push(token);
-                    } else {
-                        titleParts = title.split("种子标签");
-                        if (titleParts.length > 1) {   // 如果含有种子标签 
-                            var token = titleParts[1].split("(")[1].split(")")[0]; // 提取种子标签
-                            if (token.length > 1) {
-                                tokens.push(token);
-                                await this.sendLarkMessage("币安公告", announcement.title+"\n"+publishDate);
+                    }
+                } else {
+                    var titleParts = title.split("种子标签");
+                    if (titleParts.length > 1) {   // 如果含有种子标签 
+                        var token = title.split("(")[1].split(")")[0]; // 提取种子标签
+                        if (token.length > 1) {
+                            const isProcessed = await config.redis.get(token);
+                            if (isProcessed) {
+                                // console.log(`代币 ${token} 已经处理过，跳过`);
+                                continue;
                             }
+                            tokens.push(token);
+                            await this.sendLarkMessage("币安公告", announcement.title+"\n"+publishDate);
                         }
                     }
                 }
