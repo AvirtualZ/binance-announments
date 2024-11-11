@@ -32,7 +32,7 @@ export default class Binance {
                 // console.log("文章链接:", articleUrl);
 
                 if (title.includes("合约") && title.includes("上线")) {
-                    const titleParts = title.split("币安合约将上线");
+                    var titleParts = title.split("币安合约将上线");
                     if (titleParts.length > 1) {
                         const token = titleParts[1].split(" ")[0];
                         // console.log("重要公告:", title, id, publishDate);
@@ -46,6 +46,15 @@ export default class Binance {
                         // 推送lark
                         await this.sendLarkMessage("币安公告", announcement.title+"\n"+publishDate);
                         tokens.push(token);
+                    } else {
+                        titleParts = title.split("种子标签");
+                        if (titleParts.length > 1) {   // 如果含有种子标签 
+                            var token = titleParts[1].split("(")[1].split(")")[0]; // 提取种子标签
+                            if (token.length > 1) {
+                                tokens.push(token);
+                                await this.sendLarkMessage("币安公告", announcement.title+"\n"+publishDate);
+                            }
+                        }
                     }
                 }
             }
