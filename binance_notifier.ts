@@ -46,6 +46,25 @@ export default class Binance {
                         // 推送lark
                         await this.sendLarkMessage("币安公告", announcement.title+"\n"+publishDate);
                         tokens.push(token);
+
+                        // 第一个中文字符之前的字符
+                        var token2 = titleParts[1].match(/^[^\u4e00-\u9fa5]*/)[0].trim();
+                        if (token2 && !(await config.redis.get(token2))) {
+                            if (token2 == token) {
+                                continue;
+                            }
+
+                            tokens.push(token2);
+                        }
+
+                        // 第一个非数字、非字母、非中文、非逗号、非句号、非冒号、非冒号、非感叹号、非问号、非空格的字符
+                        var token3 = titleParts[1].match(/^[^,.，。、:：!！?？\s]*/)[0].trim();
+                        if (token3 && !(await config.redis.get(token3))) {
+                            if (token3 == token || token3 == token2) {
+                                continue;
+                            }
+                            tokens.push(token3);
+                        }
                     }
                 } else {
                     var titleParts = title.split("种子标签");
@@ -69,6 +88,8 @@ export default class Binance {
             return tokens;
         }
         
+        console.log("tokens:", tokens);
+
         return tokens;
     }
 
