@@ -2,6 +2,7 @@ import axios from "axios";
 import _ from "lodash";
 import moment from "moment";
 import config from './config.js';
+import crypto from 'crypto';
 
 export default class Binance {
     static async CheckAnnouncements(): Promise<string[]> {
@@ -214,11 +215,53 @@ export default class Binance {
         }
     }
 
+    static async gen_sign(subUrl: string, query_string: string, payloadString: string, t: number){
+        const secret = config.gateio.secret;     // api_secret
+        const url = `/api/v4${subUrl}`;
+    
+        
+        const hashedPayload = crypto
+            .createHash('sha512')
+            .update(payloadString || '')
+            .digest('hex');
+    
+        const s = `POST\n${url}\n${query_string}\n${hashedPayload}\n${t}`;
+        const sign = crypto
+            .createHmac('sha512', secret)
+            .update(s)
+            .digest('hex');
+    
+        return sign;
+    }
+
     static async placeLongOrderGateIO(token: string) {
         try {
             const exchange = config.gateio;
             const symbol = `${token}/USDT:USDT`;
+            try {
+                const url = `/futures/usdt/positions/${token}_USDT/risk_limit`;
+                const query_param = 'risk_limit=5000'
+                console.log(token, url);
 
+                const t = Math.floor(Date.now() / 1000);
+                const sign = await this.gen_sign(url, query_param, "", t) 
+                const response = await axios({
+                    method: 'POST',
+                    url: `https://api.gateio.ws/api/v4${url}?${query_param}`,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'KEY': config.gateio.apiKey,
+                        'SIGN': sign,
+                        'Timestamp': `${t}`
+                    }
+                });
+                console.log('已将风险限额调整为 5000 USDT');
+            } catch (error) {
+                console.error('设置风险限额失败:', error);
+                // 继续执行，因为可能已经设置过了
+            }
+            
             // 获取账户余额
             const balance = await exchange.fetchBalance({ 'type': 'swap' });
             const availableUSDT = balance.USDT?.free || 0;
@@ -265,7 +308,7 @@ export default class Binance {
                 var logMsg = `在Gate.io为 ${token} 使用逐仓模式下了${leverage}倍多单，订单信息:${JSON.stringify(order)}`;
                 if (price) {
                     // 下20%止盈限价单
-                    const takeProfitPrice = price * 1.1; // 在当前价格基础上加20%
+                    const takeProfitPrice = price * 1.15; // 在当前价格基础上加20%
                     const takeProfitOrder = await exchange.createOrder(symbol, 'limit', 'sell', actualAmount, takeProfitPrice, {
                         'tdMode': 'isolated',
                         'leverage': leverage,
