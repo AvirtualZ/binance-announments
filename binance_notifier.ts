@@ -308,7 +308,7 @@ export default class Binance {
                 var logMsg = `在Gate.io为 ${token} 使用逐仓模式下了${leverage}倍多单，订单信息:${JSON.stringify(order)}`;
                 if (price) {
                     // 下20%止盈限价单
-                    const takeProfitPrice = price * 1.15; // 在当前价格基础上加20%
+                    const takeProfitPrice = price * 1.05; // 在当前价格基础上加20%
                     const takeProfitOrder = await exchange.createOrder(symbol, 'limit', 'sell', actualAmount, takeProfitPrice, {
                         'tdMode': 'isolated',
                         'leverage': leverage,
