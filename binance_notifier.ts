@@ -26,6 +26,11 @@ export default class Binance {
 
             const announcements = result.data["data"]["catalogs"][0]["articles"];
             for (const announcement of announcements) {
+                if (tokens.length > 0) {
+                    // 只处理最新的公告
+                    break;
+                }
+
                 const title = announcement.title;
                 const publishDate = moment(announcement.releaseDate).format('YYYY-MM-DD HH:mm:ss');
                 const id = announcement.id;
@@ -79,7 +84,7 @@ export default class Binance {
                             }
                             tokens.push(token);
                             await this.sendLarkMessage("币安公告", announcement.title+"\n"+publishDate);
-                        }
+                    }
                     }
                 }
             }
@@ -98,16 +103,15 @@ export default class Binance {
         console.log('tokens:', tokens);
         for (const token of tokens) {
             // 检查OKX交易所
-            const isListedOnOKX = await this.checkOKXListing(token);
-            if (isListedOnOKX) {
-                console.log(`代币 ${token} 在OKX上市了永续合约111111111111111`);
-                await this.placeLongOrderOKX(token);
+            const isListedOnGateIO = await this.checkGateIOListing(token);
+            if (isListedOnGateIO) {
+                console.log(`代币 ${token} 在Gate.io上市了永续合约222222222222222`);
+                await this.placeLongOrderGateIO(token);
             } else {
-                // 检查Gate.io交易所
-                const isListedOnGateIO = await this.checkGateIOListing(token);
-                if (isListedOnGateIO) {
-                    console.log(`代币 ${token} 在Gate.io上市了永续合约222222222222222`);
-                    await this.placeLongOrderGateIO(token);
+                const isListedOnOKX = await this.checkOKXListing(token);
+                if (isListedOnOKX) {
+                    console.log(`代币 ${token} 在OKX上市了永续合约111111111111111`);
+                    await this.placeLongOrderOKX(token);
                 } else {
                     console.log(`代币 ${token} 未在OKX或Gate.io上市`);
                     await this.sendLarkMessage("币安公告", `代币 ${token} 未在OKX或Gate.io上市`);
@@ -150,21 +154,20 @@ export default class Binance {
                 const exchange = config.okx;
             const symbol = `${token}/USDT:USDT`;
             // 获取账户余额
-            const balance = await exchange.fetchBalance();
-            const availableUSDT = balance.USDT?.free || 0;
+            // const balance = await exchange.fetchBalance();
+            // const availableUSDT = balance.USDT?.free || 0;
+            const availableUSDT = 500;
             console.log(`OKX可用USDT余额: ${availableUSDT}`);
 
             const amount = availableUSDT*0.9; // 设置合适的下单数量
             const leverage = 3; // 设置5倍杠杆, 其他倍数设置不成功，鬼知道为什么
 
             // 设置杠杆和逐仓模式
-            // await exchange.setPositionMode(true);  // 设置为双向持仓模式
-            await exchange.privatePostAccountSetPositionMode({ 'posMode': 'long_short_mode' });
-
-            await exchange.setLeverage(leverage, symbol, {
-                'mgnMode': 'isolated',
-                'posSide': 'long',
-            });
+            // await exchange.privatePostAccountSetPositionMode({ 'posMode': 'long_short_mode' });
+            // await exchange.setLeverage(leverage, symbol, {
+            //     'mgnMode': 'isolated',
+            //     'posSide': 'long',
+            // });
 
             // 获取当前市场价格
             const ticker = await exchange.fetchTicker(symbol);
@@ -234,39 +237,43 @@ export default class Binance {
         return sign;
     }
 
+    static async setRiskLimitGateIO(token: string) {
+        try {
+            const url = `/futures/usdt/positions/${token}_USDT/risk_limit`;
+            const query_param = 'risk_limit=5000'
+            console.log(token, url);
+
+            const t = Math.floor(Date.now() / 1000);
+            const sign = await this.gen_sign(url, query_param, "", t) 
+            const response = await axios({
+                method: 'POST',
+                url: `https://api.gateio.ws/api/v4${url}?${query_param}`,
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'KEY': config.gateio.apiKey,
+                    'SIGN': sign,
+                    'Timestamp': `${t}`
+                }
+            });
+            console.log('已将风险限额调整为 5000 USDT');
+        } catch (error) {
+            console.error('设置风险限额失败:', error);
+            // 继续执行，因为可能已经设置过了
+        }
+    }
+    // 在Gate.io下单
     static async placeLongOrderGateIO(token: string) {
         try {
             const exchange = config.gateio;
             const symbol = `${token}/USDT:USDT`;
-            try {
-                const url = `/futures/usdt/positions/${token}_USDT/risk_limit`;
-                const query_param = 'risk_limit=5000'
-                console.log(token, url);
-
-                const t = Math.floor(Date.now() / 1000);
-                const sign = await this.gen_sign(url, query_param, "", t) 
-                const response = await axios({
-                    method: 'POST',
-                    url: `https://api.gateio.ws/api/v4${url}?${query_param}`,
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'KEY': config.gateio.apiKey,
-                        'SIGN': sign,
-                        'Timestamp': `${t}`
-                    }
-                });
-                console.log('已将风险限额调整为 5000 USDT');
-            } catch (error) {
-                console.error('设置风险限额失败:', error);
-                // 继续执行，因为可能已经设置过了
-            }
+            // 设置风险限额
+            // await this.setRiskLimitGateIO(token);
             
             // 获取账户余额
-            const balance = await exchange.fetchBalance({ 'type': 'swap' });
-            const availableUSDT = balance.USDT?.free || 0;
-            // const availableUSDT = 10;
-            console.log(`Gate.io可用USDT余额: ${balance.USDT?.free}`);
+            // const balance = await exchange.fetchBalance({ 'type': 'swap' });
+            // const availableUSDT = balance.USDT?.free || 0;
+            const availableUSDT = 500;
 
             const amount = availableUSDT*0.9; // 设置合适的下单数量
             const leverage = 3; // 设置5倍杠杆, 其他倍数设置不成功，鬼知道为什么

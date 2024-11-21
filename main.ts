@@ -22,7 +22,7 @@ setInterval(async () => {
     } catch (error) {
         console.error('发生错误:', error);
     }
-    }, 10000);
+    }, 3000);
 }
 
 run();
